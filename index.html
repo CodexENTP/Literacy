@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LaLilo Score Decoder</title>
+  <style>
+    :root{
+      --navy:#3f4a93;
+      --navy-dark:#2f376e;
+      --ink:#1f2937;
+      --muted:#6b7280;
+      --border:#d8dee8;
+      --panel:#f6f8fb;
+      --white:#ffffff;
+      --accent:#6874b8;
+    }
+
+    *{box-sizing:border-box}
+
+    body{
+      margin:0;
+      font-family:Arial, Helvetica, sans-serif;
+      background:#eef2f7;
+      color:var(--ink);
+      line-height:1.45;
+    }
+
+    .app{
+      width:min(1100px, calc(100% - 24px));
+      margin:24px auto;
+    }
+
+    .card{
+      background:var(--white);
+      border:1px solid var(--border);
+      border-radius:16px;
+      box-shadow:0 8px 24px rgba(31,41,55,.08);
+      overflow:hidden;
+    }
+
+    .header{
+      padding:24px;
+      border-bottom:1px solid var(--border);
+    }
+
+    h1{
+      margin:0 0 8px;
+      font-size:clamp(24px, 4vw, 34px);
+    }
+
+    .sub{
+      margin:0;
+      color:var(--muted);
+      max-width:850px;
+    }
+
+    .content{
+      padding:24px;
+    }
+
+    .report-table{
+      border:1px solid var(--border);
+      border-radius:12px;
+      overflow:hidden;
+      background:#fff;
+    }
+
+    .report-head{
+      display:grid;
+      grid-template-columns:12.9% 29.05% 29.13% 28.92%;
+      background:var(--navy);
+      color:#fff;
+      font-weight:700;
+      text-align:center;
+      font-size:14px;
+    }
+
+    .report-head div{
+      padding:13px 8px;
+      border-right:1px solid rgba(255,255,255,.22);
+    }
+
+    .report-head div:last-child{border-right:none}
+
+    .ruler-row{
+      display:grid;
+      grid-template-columns:12.9% 87.1%;
+      align-items:center;
+      padding:16px;
+      gap:0;
+    }
+
+    .row-label{
+      padding-right:14px;
+      font-size:14px;
+      font-weight:700;
+      color:#4b5563;
+      text-align:right;
+    }
+
+    .track{
+      position:relative;
+      height:72px;
+      cursor:crosshair;
+      user-select:none;
+      touch-action:none;
+      outline:none;
+    }
+
+    .track:focus-visible{
+      outline:3px solid rgba(104,116,184,.25);
+      border-radius:10px;
+    }
+
+    .track-line{
+      position:absolute;
+      left:0;
+      right:0;
+      top:50%;
+      transform:translateY(-50%);
+      height:4px;
+      background:#cfd6e3;
+      border-radius:999px;
+    }
+
+    .grade-lines{
+      position:absolute;
+      inset:4px 0;
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      pointer-events:none;
+    }
+
+    .grade-lines div{
+      border-right:2px solid #8e98aa;
+    }
+
+    .grade-lines div:last-child{border-right:none}
+
+    .ticks{
+      position:absolute;
+      inset:11px 0;
+      display:grid;
+      grid-template-columns:repeat(30,1fr);
+      pointer-events:none;
+    }
+
+    .ticks div{
+      border-left:1px solid #e5e9f0;
+    }
+
+    .ticks div:nth-child(10n+1){
+      border-left:1px solid #b7c0cf;
+    }
+
+    .ticks div:last-child{
+      border-right:1px solid #e5e9f0;
+    }
+
+    .marker{
+      position:absolute;
+      top:50%;
+      left:33.333%;
+      transform:translate(-50%,-50%);
+      width:28px;
+      height:28px;
+      background:#fff;
+      border:4px solid var(--accent);
+      border-radius:50%;
+      box-shadow:0 2px 5px rgba(0,0,0,.15);
+      pointer-events:none;
+    }
+
+    .labels-wrap{
+      display:grid;
+      grid-template-columns:12.9% 87.1%;
+      padding:0 16px 16px;
+    }
+
+    .scale-labels{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:0;
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .grade-scale{
+      display:flex;
+      justify-content:space-between;
+      padding:0 6px;
+    }
+
+    .results{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:14px;
+      margin-top:20px;
+    }
+
+    .result{
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:16px;
+      background:#fff;
+    }
+
+    .result .label{
+      color:var(--muted);
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      font-weight:700;
+    }
+
+    .result .value{
+      margin-top:5px;
+      font-size:24px;
+      font-weight:700;
+    }
+
+    .controls{
+      margin-top:18px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:16px;
+      background:var(--panel);
+    }
+
+    .control-grid{
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:14px;
+      align-items:end;
+    }
+
+    label{
+      display:block;
+      font-size:14px;
+      font-weight:700;
+    }
+
+    input{
+      margin-top:6px;
+      width:100%;
+      min-height:44px;
+      padding:10px 12px;
+      font-size:16px;
+      border:1px solid #bfc8d6;
+      border-radius:9px;
+      background:#fff;
+      color:var(--ink);
+    }
+
+    button{
+      min-height:44px;
+      border:none;
+      border-radius:9px;
+      padding:0 16px;
+      background:var(--navy);
+      color:#fff;
+      font-size:14px;
+      font-weight:700;
+      cursor:pointer;
+    }
+
+    button:hover{background:var(--navy-dark)}
+
+    .note{
+      margin:12px 0 0;
+      font-size:13px;
+      color:var(--muted);
+    }
+
+    .reference{
+      margin-top:18px;
+      padding:14px 16px;
+      border-left:4px solid var(--accent);
+      background:#f8f9fc;
+      border-radius:8px;
+      font-size:13px;
+      color:#4b5563;
+    }
+
+    .footer{
+      padding:16px 24px 22px;
+      color:var(--muted);
+      font-size:12px;
+      border-top:1px solid var(--border);
+    }
+
+    @media (max-width:760px){
+      .content,.header{padding:18px}
+      .report-head{
+        grid-template-columns:21% 26.33% 26.33% 26.34%;
+        font-size:11px;
+      }
+      .ruler-row,
+      .labels-wrap{
+        grid-template-columns:21% 79%;
+      }
+      .results{
+        grid-template-columns:1fr;
+      }
+      .control-grid{
+        grid-template-columns:1fr;
+      }
+      .row-label{
+        font-size:12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="card">
+      <div class="header">
+        <h1>LaLilo Score Decoder</h1>
+        <p class="sub">
+          Match the center of a student's open-circle marker from the LaLilo progress report.
+          This tool converts the plotted position into an estimated grade-equivalent value.
+        </p>
+      </div>
+
+      <div class="content">
+        <div class="report-table">
+          <div class="report-head">
+            <div>Student</div>
+            <div>Kindergarten</div>
+            <div>1st Grade</div>
+            <div>2nd Grade</div>
+          </div>
+
+          <div class="ruler-row">
+            <div class="row-label">Match dot →</div>
+            <div id="track" class="track" role="slider"
+                 aria-label="LaLilo plotted grade position"
+                 aria-valuemin="0"
+                 aria-valuemax="2.99"
+                 aria-valuenow="1.00"
+                 tabindex="0">
+              <div class="track-line"></div>
+              <div class="grade-lines"><div></div><div></div><div></div></div>
+              <div class="ticks" id="ticks"></div>
+              <div class="marker" id="marker"></div>
+            </div>
+          </div>
+
+          <div class="labels-wrap">
+            <div></div>
+            <div class="scale-labels">
+              <div class="grade-scale"><span>0.0</span><span>0.5</span><span>0.9</span></div>
+              <div class="grade-scale"><span>1.0</span><span>1.5</span><span>1.9</span></div>
+              <div class="grade-scale"><span>2.0</span><span>2.5</span><span>2.9</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="results">
+          <div class="result">
+            <div class="label">Estimated value</div>
+            <div class="value" id="score">1.0</div>
+          </div>
+          <div class="result">
+            <div class="label">Readable grade</div>
+            <div class="value" id="grade">1st Grade - beginning</div>
+          </div>
+          <div class="result">
+            <div class="label">Position within grade</div>
+            <div class="value" id="progress">0%</div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <div class="control-grid">
+            <label>
+              Or enter a value directly
+              <input id="manual" type="number" min="0" max="2.99" step="0.01" value="1.00" />
+            </label>
+            <button id="reset" type="button">Reset to 1.0</button>
+          </div>
+          <p class="note">
+            Suggested entry rule: round to the nearest tenth. Example: a marker about 63% through
+            1st Grade becomes approximately 1.6.
+          </p>
+        </div>
+
+        <div class="reference">
+          <strong>Important:</strong> This is an internal decoding aid based on the plotted LaLilo report scale.
+          It does not represent an official numeric score published by LaLilo/Renaissance.
+        </div>
+      </div>
+
+      <div class="footer">
+        Scale modeled from the LaLilo progress-report layout with separate Kindergarten, 1st Grade, and 2nd Grade bands.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const track = document.getElementById('track');
+      const marker = document.getElementById('marker');
+      const score = document.getElementById('score');
+      const grade = document.getElementById('grade');
+      const progress = document.getElementById('progress');
+      const manual = document.getElementById('manual');
+      const reset = document.getElementById('reset');
+      const ticks = document.getElementById('ticks');
+
+      for (let i = 0; i < 30; i++) {
+        ticks.appendChild(document.createElement('div'));
+      }
+
+      let value = 1.0;
+
+      function clamp(v){
+        return Math.max(0, Math.min(2.999, Number.isFinite(v) ? v : 0));
+      }
+
+      function update(v, syncInput = true){
+        value = clamp(v);
+
+        marker.style.left = ((value / 3) * 100) + '%';
+
+        const rounded = Math.round(value * 10) / 10;
+        score.textContent = rounded.toFixed(1);
+
+        const gradeIndex = Math.min(2, Math.floor(value));
+        const within = (value - gradeIndex) * 100;
+        const names = ['Kindergarten', '1st Grade', '2nd Grade'];
+
+        let stage = 'beginning';
+        if (within >= 20 && within < 45) stage = 'early';
+        else if (within >= 45 && within < 70) stage = 'middle';
+        else if (within >= 70 && within < 90) stage = 'late';
+        else if (within >= 90) stage = 'end';
+
+        grade.textContent = names[gradeIndex] + ' - ' + stage;
+        progress.textContent = Math.round(within) + '%';
+        track.setAttribute('aria-valuenow', value.toFixed(2));
+
+        if (syncInput) {
+          manual.value = value.toFixed(2);
+        }
+      }
+
+      function setFromPointer(event){
+        const rect = track.getBoundingClientRect();
+        const ratio = (event.clientX - rect.left) / rect.width;
+        update(ratio * 3);
+      }
+
+      track.addEventListener('pointerdown', (event) => {
+        track.setPointerCapture(event.pointerId);
+        setFromPointer(event);
+      });
+
+      track.addEventListener('pointermove', (event) => {
+        if (track.hasPointerCapture(event.pointerId)) {
+          setFromPointer(event);
+        }
+      });
+
+      track.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+          event.preventDefault();
+          update(value + (event.key === 'ArrowRight' ? 0.1 : -0.1));
+        }
+      });
+
+      manual.addEventListener('input', () => {
+        const parsed = Number(manual.value);
+        if (Number.isFinite(parsed)) {
+          update(parsed, false);
+        }
+      });
+
+      reset.addEventListener('click', () => update(1.0));
+
+      update(1.0);
+    })();
+  </script>
+</body>
+</html>
