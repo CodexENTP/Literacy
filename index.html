@@ -56,7 +56,7 @@
     }
 
     .content{
-      padding:24px;
+      padding:18px 24px 10px;
     }
 
     .report-table{
@@ -163,10 +163,10 @@
       top:50%;
       left:33.333%;
       transform:translate(-50%,-50%);
-      width:28px;
-      height:28px;
+      width:16px;
+      height:16px;
       background:#fff;
-      border:4px solid var(--accent);
+      border:3px solid var(--accent);
       border-radius:50%;
       box-shadow:0 2px 5px rgba(0,0,0,.15);
       pointer-events:none;
@@ -196,7 +196,8 @@
       display:grid;
       grid-template-columns:repeat(3,1fr);
       gap:14px;
-      margin-top:20px;
+      margin-top:14px;
+      margin-bottom:4px;
     }
 
     .result{
@@ -310,7 +311,430 @@
         font-size:12px;
       }
     }
+
+    /* PDF workspace */
+    .workspace{
+      margin-top:8px;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:16px;
+      box-shadow:0 8px 24px rgba(31,41,55,.08);
+      overflow:hidden;
+    }
+    .workspace-head{
+      padding:18px 20px;
+      border-bottom:1px solid var(--border);
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .workspace-head h2{margin:0;font-size:21px}
+    .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .toolbar button,.file-button,.toolbar select{
+      min-height:38px;border-radius:8px;border:1px solid #bfc8d6;
+      padding:0 12px;font:600 13px Arial,Helvetica,sans-serif;
+    }
+    .toolbar button,.file-button{background:#fff;color:var(--ink);cursor:pointer}
+    .toolbar button:hover,.file-button:hover{background:#f3f5f9}
+    .toolbar .primary{background:var(--navy);color:#fff;border-color:var(--navy)}
+    .toolbar .primary:hover{background:var(--navy-dark)}
+    .toolbar .danger{color:#a12626;border-color:#e3b6b6}
+    .file-button input{display:none}
+    .page-status{font-size:13px;color:var(--muted);min-width:110px;text-align:center}
+    .pdf-stage-wrap{
+      position:relative;
+      background:#dfe5ed;
+      padding:22px;
+      min-height:320px;
+      overflow:auto;
+    }
+    .pdf-stage{
+      position:relative;
+      margin:0 auto;
+      width:min(100%, 900px);
+      line-height:0;
+      box-shadow:0 5px 22px rgba(0,0,0,.18);
+      background:#fff;
+    }
+    #pdfCanvas{display:block;width:100%;height:auto;background:#fff}
+    #annotationLayer{
+      position:absolute;inset:0;line-height:normal;pointer-events:none;
+    }
+    .annotation{
+      position:absolute;
+      transform:translate(-2px,-50%);
+      font:700 16px Arial,Helvetica,sans-serif;
+      white-space:pre;
+      cursor:move;
+      user-select:none;
+      pointer-events:auto;
+      text-shadow:0 0 1px rgba(255,255,255,.25);
+    }
+    .annotation.selected{outline:1px dashed #6b7280;outline-offset:3px}
+    .guide-layer{position:absolute;inset:0;pointer-events:none;z-index:4}
+    .guide{
+      position:absolute;top:0;bottom:0;width:0;border-left:2px dotted;
+      opacity:.55;
+    }
+    .guide.student{left:12.9%;border-color:#6b7280}
+    .guide.k{left:41.95%;border-color:#d1495b}
+    .guide.g1{left:71.08%;border-color:#2d7dd2}
+    .guide.g2{right:0;border-color:#2a9d4b}
+    .guide-key{
+      padding:9px 20px 12px;border-top:1px solid var(--border);
+      font-size:12px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap;
+    }
+    .guide-key span::before{content:"";display:inline-block;width:16px;border-top:2px dotted;margin-right:5px;vertical-align:middle}
+    .key-student::before{border-color:#6b7280!important}.key-k::before{border-color:#d1495b!important}
+    .key-g1::before{border-color:#2d7dd2!important}.key-g2::before{border-color:#2a9d4b!important}
+    .data-panel{padding:18px 20px;border-top:1px solid var(--border)}
+    .data-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+    .data-head h3{margin:0;font-size:17px}
+    .data-table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px}
+    table{border-collapse:collapse;width:100%;font-size:12px;min-width:820px}
+    th,td{padding:8px 9px;border-bottom:1px solid #e7ebf1;text-align:left;white-space:nowrap}
+    th{background:#f6f8fb;font-size:11px;text-transform:uppercase;color:#596273}
+    tr:last-child td{border-bottom:none}
+    .empty-state{
+      display:grid;place-items:center;min-height:340px;padding:30px;text-align:center;
+      color:var(--muted);background:#fff;line-height:1.5;
+    }
+    .hidden{display:none!important}
+    .annotation-hint{font-size:12px;color:var(--muted);padding:0 20px 12px}
+    @media(max-width:760px){
+      .pdf-stage-wrap{padding:8px}
+      .workspace-head,.data-panel{padding:14px}
+    }
+
+
+    /* Calibrated report geometry.
+       Letter values are measured from the supplied Renaissance LaLilo pages:
+       report table x≈13..499 on a 512px page image, with Student ending near x≈75. */
+    :root{
+      --student-col:12.76%;
+      --k-col:29.01%;
+      --g1-col:29.22%;
+      --g2-col:29.01%;
+      --decoder-width:900px;
+      --guide-left:2.54%;
+      --guide-student-end:14.65%;
+      --guide-k-end:42.19%;
+      --guide-g1-end:69.92%;
+      --guide-right:97.46%;
+      --cursor-ring-size:16px;
+    }
+
+    .format-row{
+      margin-top:16px;
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:9px 12px;
+      color:var(--muted);
+      font-size:12px;
+    }
+    .format-row label{
+      font-size:12px;
+      color:#4b5563;
+    }
+    .format-row select{
+      min-height:36px;
+      border:1px solid #bfc8d6;
+      border-radius:8px;
+      background:#fff;
+      color:var(--ink);
+      padding:0 10px;
+      font-weight:700;
+    }
+
+    /* The decoder is intentionally no wider than the LaLilo table region
+       within the rendered PDF, rather than the full browser card. */
+    .report-table,
+    .results,
+    .controls{
+      width:min(var(--decoder-width), 100%);
+      margin-left:auto;
+      margin-right:auto;
+    }
+    .results{margin-top:20px}
+    .controls{margin-top:18px}
+
+    .report-head{
+      grid-template-columns:
+        var(--student-col)
+        var(--k-col)
+        var(--g1-col)
+        var(--g2-col) !important;
+    }
+    .ruler-row,
+    .labels-wrap{
+      grid-template-columns:var(--student-col) calc(100% - var(--student-col)) !important;
+    }
+    .ruler-row{padding:12px 0}
+    .labels-wrap{padding:0 0 14px}
+    .row-label{
+      padding:0 10px 0 6px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    /* Guides use absolute positions measured from the full PDF page,
+       not from the browser card. */
+    .guide.student{left:var(--guide-left)!important;border-color:#6b7280}
+    .guide.k{left:var(--guide-k-end)!important;border-color:#d1495b}
+    .guide.g1{left:var(--guide-g1-end)!important;border-color:#2d7dd2}
+    .guide.g2{left:var(--guide-right)!important;right:auto!important;border-color:#2a9d4b}
+
+    .cursor-ring{
+      position:absolute;
+      z-index:8;
+      width:var(--cursor-ring-size);
+      height:var(--cursor-ring-size);
+      border:2px solid #6874b8;
+      background:rgba(255,255,255,.14);
+      border-radius:50%;
+      transform:translate(-50%,-50%);
+      pointer-events:none;
+      display:none;
+      box-shadow:0 0 0 1px rgba(255,255,255,.78),0 1px 4px rgba(0,0,0,.18);
+    }
+    .pdf-stage.cursor-active .cursor-ring{display:block}
+
+    .bottom-reference{
+      width:min(1100px, calc(100% - 24px));
+      margin:22px auto 28px;
+      padding:14px 16px;
+      border-left:4px solid var(--accent);
+      background:#f8f9fc;
+      border-radius:8px;
+      font-size:13px;
+      color:#4b5563;
+      box-shadow:0 4px 14px rgba(31,41,55,.05);
+    }
+
+    @media(max-width:760px){
+      .format-row{align-items:flex-start}
+      .report-head{font-size:10px!important}
+      .row-label{font-size:10px}
+    }
+
+
+    /* Cursor-tracing revision */
+    .kindergarten-start-line{
+      position:absolute;
+      left:0;
+      top:4px;
+      bottom:4px;
+      width:0;
+      border-left:2px solid #8e98aa;
+      z-index:3;
+      pointer-events:none;
+    }
+
+    /* Explicitly show the Student / Kindergarten divider in the report header */
+    .report-head div:first-child{
+      border-right:2px solid rgba(255,255,255,.65) !important;
+    }
+
+    /* A corresponding guide on the PDF itself */
+    .guide.student{
+      left:var(--guide-student-end)!important;
+      border-color:#6b7280!important;
+    }
+
+    /* Remove legacy annotation styling from layout */
+    #annotationLayer,.annotation,.annotation-hint{display:none!important}
+
+    .modal-backdrop{
+      position:fixed;
+      inset:0;
+      z-index:9999;
+      display:grid;
+      place-items:center;
+      padding:20px;
+      background:rgba(17,24,39,.48);
+    }
+    .modal-card{
+      width:min(420px,100%);
+      background:#fff;
+      border-radius:14px;
+      padding:20px;
+      box-shadow:0 20px 60px rgba(0,0,0,.28);
+      color:var(--ink);
+    }
+    .modal-card h3{margin:0 0 8px;font-size:20px}
+    .modal-card p{margin:0 0 15px;color:#596273;font-size:14px;line-height:1.45}
+    .modal-card input{margin-top:6px}
+    .modal-score{
+      margin-top:14px;
+      padding:10px 12px;
+      background:#f6f8fb;
+      border:1px solid var(--border);
+      border-radius:9px;
+      font-size:14px;
+    }
+    .modal-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:9px;
+      margin-top:16px;
+    }
+    .modal-actions button{
+      min-width:92px;
+      min-height:40px;
+    }
+    .modal-actions .primary{
+      background:var(--navy);
+      color:#fff;
+    }
+
+
+    /* Final workflow refinements */
+    .file-button{
+      min-width:138px!important;
+      justify-content:center;
+      display:inline-flex!important;
+      align-items:center;
+      background:#2f8f46!important;
+      color:#fff!important;
+      border-color:#2f8f46!important;
+      padding:0 18px!important;
+      white-space:nowrap;
+    }
+    .file-button:hover{
+      background:#26763a!important;
+      border-color:#26763a!important;
+    }
+
+    /* Keep the decoder and PDF workspace visually close */
+    .card{margin-bottom:0}
+    .workspace{margin-top:8px}
+    .footer{padding-bottom:14px}
+
+
+    /* Side-sheet scoring workspace */
+    .work-area{
+      display:grid;
+      grid-template-columns:270px minmax(0,1fr);
+      gap:14px;
+      align-items:start;
+      padding:8px 14px 14px;
+      background:#dfe5ed;
+    }
+    .side-sheet{
+      margin-top:72px;
+      background:#fff;
+      border:2px solid #111827;
+      border-radius:2px;
+      overflow:hidden;
+      box-shadow:0 3px 12px rgba(0,0,0,.12);
+      align-self:start;
+    }
+    .side-sheet-title{
+      padding:7px 8px;
+      background:#f7f7f7;
+      border-bottom:2px solid #111827;
+      font-size:12px;
+      font-weight:700;
+      text-align:center;
+      color:#374151;
+    }
+    .side-sheet-head{
+      display:grid;
+      grid-template-columns:1.58fr 1fr;
+      border-bottom:2px solid #111827;
+      background:#fff;
+    }
+    .side-sheet-head div{
+      min-height:42px;
+      padding:8px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      font-size:12px;
+      font-weight:700;
+      border-right:2px solid #111827;
+    }
+    .side-sheet-head div:last-child{border-right:0}
+    .side-sheet-row{
+      display:grid;
+      grid-template-columns:1.58fr 1fr;
+      min-height:46px;
+      border-bottom:2px solid #111827;
+      background:#fff;
+    }
+    .side-sheet-row:last-child{border-bottom:0}
+    .side-sheet-row > div{
+      border-right:2px solid #111827;
+      display:flex;
+      align-items:center;
+      min-width:0;
+    }
+    .side-sheet-row > div:last-child{
+      border-right:0;
+      justify-content:center;
+      font-weight:700;
+      font-size:14px;
+    }
+    .side-sheet-row input{
+      border:0!important;
+      border-radius:0!important;
+      min-height:42px!important;
+      margin:0!important;
+      padding:7px 9px!important;
+      width:100%;
+      font-size:13px!important;
+      outline:none;
+      background:#fff!important;
+    }
+    .side-sheet-row input:focus{
+      box-shadow:inset 0 0 0 2px #6874b8;
+    }
+
+    .pdf-stage-wrap{
+      padding:0!important;
+      min-height:320px;
+      overflow:auto;
+      background:transparent!important;
+    }
+    .pdf-stage{
+      margin:0 auto;
+    }
+
+    .cursor-ring{
+      z-index:20!important;
+    }
+    .pdf-stage.cursor-active .cursor-ring{
+      display:block!important;
+    }
+
+    @media(max-width:900px){
+      .work-area{
+        grid-template-columns:220px minmax(0,1fr);
+        gap:8px;
+        padding:8px;
+      }
+      .side-sheet{margin-top:55px}
+    }
+    @media(max-width:700px){
+      .work-area{
+        grid-template-columns:1fr;
+      }
+      .side-sheet{
+        margin-top:0;
+        order:2;
+      }
+    }
+
   </style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
 </head>
 <body>
   <div class="app">
@@ -321,6 +745,14 @@
           Match the center of a student's open-circle marker from the LaLilo progress report.
           This tool converts the plotted position into an estimated grade-equivalent value.
         </p>
+        <div class="format-row">
+          <label for="paperFormat">Renaissance PDF format</label>
+          <select id="paperFormat">
+            <option value="letter" selected>Letter (8.5 × 11 in)</option>
+            <option value="a4">A4 (210 × 297 mm)</option>
+          </select>
+          <span id="formatNote">Letter calibration matches the supplied Renaissance report.</span>
+        </div>
       </div>
 
       <div class="content">
@@ -341,6 +773,7 @@
                  aria-valuenow="1.00"
                  tabindex="0">
               <div class="track-line"></div>
+               <div class="kindergarten-start-line" aria-hidden="true"></div>
               <div class="grade-lines"><div></div><div></div><div></div></div>
               <div class="ticks" id="ticks"></div>
               <div class="marker" id="marker"></div>
@@ -371,25 +804,6 @@
             <div class="value" id="progress">0%</div>
           </div>
         </div>
-
-        <div class="controls">
-          <div class="control-grid">
-            <label>
-              Or enter a value directly
-              <input id="manual" type="number" min="0" max="2.99" step="0.01" value="1.00" />
-            </label>
-            <button id="reset" type="button">Reset to 1.0</button>
-          </div>
-          <p class="note">
-            Suggested entry rule: round to the nearest tenth. Example: a marker about 63% through
-            1st Grade becomes approximately 1.6.
-          </p>
-        </div>
-
-        <div class="reference">
-          <strong>Important:</strong> This is an internal decoding aid based on the plotted LaLilo report scale.
-          It does not represent an official numeric score published by LaLilo/Renaissance.
-        </div>
       </div>
 
       <div class="footer">
@@ -398,6 +812,82 @@
     </div>
   </div>
 
+    <section class="workspace" aria-label="PDF working area">
+      <div class="workspace-head">
+        <div>
+          <h2>PDF Workspace</h2>
+          <div class="note">Upload the Renaissance report, work through only the LaLilo pages you need, annotate them, and export the edited PDF and Excel data.</div>
+        </div>
+        <div class="toolbar">
+          <label class="file-button">Upload PDF<input id="pdfFile" type="file" accept="application/pdf,.pdf"></label>
+          <button id="prevPage" type="button">← Previous</button>
+          <div id="pageStatus" class="page-status">No PDF loaded</div>
+          <button id="nextPage" type="button">Next →</button>
+          <button id="zoomOut" type="button">− Zoom</button>
+          <button id="zoomIn" type="button">+ Zoom</button>
+          <button id="fitWidth" type="button">Fit Width</button>
+        </div>
+      </div>
+
+      <div class="workspace-head" style="border-top:0;padding-top:10px;padding-bottom:10px">
+        <div class="toolbar">
+          <button id="downloadXlsx" type="button">Download Spreadsheet (.xlsx)</button>
+          <button id="clearSheet" class="danger" type="button">Clear Spreadsheet</button>
+        </div>
+        <div class="note" style="margin:0">
+          Hover to trace. Click a plotted circle to add a row: enter the name in Column A; the score is captured automatically in Column B.
+          <strong id="traceStatus">Live score: 1.0</strong>
+        </div>
+      </div>
+        <div class="note" style="margin:0">
+          Move the circle over the PDF to trace its horizontal position onto the decoder. Click the PDF to record a student and score.
+          <strong id="traceStatus">Live score: 1.0</strong>
+        </div>
+      </div>
+
+      <div id="emptyState" class="empty-state">
+        <div><strong>No PDF loaded.</strong><br>Choose <em>Upload PDF</em> to place the report beside the score sheet.</div>
+      </div>
+
+      <div id="workArea" class="work-area hidden">
+        <aside class="side-sheet">
+          <div class="side-sheet-title">LaLilo Scores</div>
+          <div class="side-sheet-head">
+            <div>Student Name</div>
+            <div>Score</div>
+          </div>
+          <div id="sideSheetRows" class="side-sheet-rows"></div>
+        </aside>
+
+        <div id="pdfWrap" class="pdf-stage-wrap">
+          <div id="pdfStage" class="pdf-stage">
+            <canvas id="pdfCanvas"></canvas>
+            <div id="cursorRing" class="cursor-ring" aria-hidden="true"></div>
+            <div class="guide-layer" aria-hidden="true">
+              <div class="guide student"></div>
+              <div class="guide k"></div>
+              <div class="guide g1"></div>
+              <div class="guide g2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="guide-key">
+        <span class="key-student">Student / Kindergarten divider</span>
+        <span class="key-k">Kindergarten / 1st boundary</span>
+        <span class="key-g1">1st / 2nd boundary</span>
+        <span class="key-g2">Right edge of report table</span>
+      </div>
+    </section>
+
+
+    <div class="bottom-reference">
+      <strong>Important:</strong> This is an internal decoding aid based on the plotted LaLilo report scale.
+      It does not represent an official numeric score published by LaLilo/Renaissance.
+    </div>
+
+
   <script>
     (() => {
       const track = document.getElementById('track');
@@ -405,8 +895,6 @@
       const score = document.getElementById('score');
       const grade = document.getElementById('grade');
       const progress = document.getElementById('progress');
-      const manual = document.getElementById('manual');
-      const reset = document.getElementById('reset');
       const ticks = document.getElementById('ticks');
 
       for (let i = 0; i < 30; i++) {
@@ -440,10 +928,6 @@
         grade.textContent = names[gradeIndex] + ' - ' + stage;
         progress.textContent = Math.round(within) + '%';
         track.setAttribute('aria-valuenow', value.toFixed(2));
-
-        if (syncInput) {
-          manual.value = value.toFixed(2);
-        }
       }
 
       function setFromPointer(event){
@@ -470,17 +954,347 @@
         }
       });
 
-      manual.addEventListener('input', () => {
-        const parsed = Number(manual.value);
-        if (Number.isFinite(parsed)) {
-          update(parsed, false);
-        }
-      });
-
-      reset.addEventListener('click', () => update(1.0));
+      // Public bridge used by the PDF cursor-tracing workspace.
+      // This removes the need to simulate typing into the manual input.
+      window.setLaLiloScore = function(v){
+        update(v, false);
+        return Number(score.textContent);
+      };
+      window.getLaLiloScore = function(){
+        return Number(score.textContent);
+      };
 
       update(1.0);
     })();
   </script>
+
+  <script>
+  (() => {
+    if (!window.pdfjsLib || !window.XLSX) return;
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    const $ = id => document.getElementById(id);
+    const pdfFile = $('pdfFile');
+    const canvas = $('pdfCanvas');
+    const stage = $('pdfStage');
+    const empty = $('emptyState');
+    const workArea = $('workArea');
+    const wrap = $('pdfWrap');
+    const status = $('pageStatus');
+    const paperFormat = $('paperFormat');
+    const formatNote = $('formatNote');
+    const cursorRing = $('cursorRing');
+    const sideSheetRows = $('sideSheetRows');
+
+    let pdfDoc = null;
+    let pageNum = 1;
+    let zoom = 1;
+    let rows = [];
+    let renderTask = null;
+    let fitPageWidth = 900;
+    let tracedValue = 1.0;
+
+    const formatConfig = {
+      letter:{
+        tableLeft:.0254,
+        tableRight:.9746,
+        studentEnd:.1465,
+        kEnd:.4219,
+        g1End:.6992
+      },
+      a4:{
+        tableLeft:.0254,
+        tableRight:.9746,
+        studentEnd:.1465,
+        kEnd:.4219,
+        g1End:.6992
+      }
+    };
+
+    function getConfig(){
+      return formatConfig[paperFormat.value] || formatConfig.letter;
+    }
+
+    function applyFormatCalibration(){
+      const cfg = getConfig();
+      const tableWidthRatio = cfg.tableRight - cfg.tableLeft;
+      const decoderWidth = Math.max(300, fitPageWidth * tableWidthRatio);
+
+      document.documentElement.style.setProperty('--decoder-width', decoderWidth + 'px');
+      document.documentElement.style.setProperty('--guide-student-end', (cfg.studentEnd * 100) + '%');
+      document.documentElement.style.setProperty('--guide-k-end', (cfg.kEnd * 100) + '%');
+      document.documentElement.style.setProperty('--guide-g1-end', (cfg.g1End * 100) + '%');
+      document.documentElement.style.setProperty('--guide-right', (cfg.tableRight * 100) + '%');
+
+      const tableWidth = cfg.tableRight - cfg.tableLeft;
+      const student = (cfg.studentEnd - cfg.tableLeft) / tableWidth * 100;
+      const k = (cfg.kEnd - cfg.studentEnd) / tableWidth * 100;
+      const g1 = (cfg.g1End - cfg.kEnd) / tableWidth * 100;
+      const g2 = (cfg.tableRight - cfg.g1End) / tableWidth * 100;
+
+      document.documentElement.style.setProperty('--student-col', student + '%');
+      document.documentElement.style.setProperty('--k-col', k + '%');
+      document.documentElement.style.setProperty('--g1-col', g1 + '%');
+      document.documentElement.style.setProperty('--g2-col', g2 + '%');
+
+      const ring = Math.max(10, Math.min(20, fitPageWidth * .016));
+      document.documentElement.style.setProperty('--cursor-ring-size', ring + 'px');
+
+      formatNote.textContent = paperFormat.value === 'letter'
+        ? 'Letter calibration matches the supplied Renaissance report.'
+        : 'A4 uses the same Renaissance report proportions on A4 paper.';
+    }
+
+    async function renderPage(){
+      if(!pdfDoc) return;
+
+      const page = await pdfDoc.getPage(pageNum);
+      const base = page.getViewport({scale:1});
+      const available = Math.max(320, wrap.clientWidth);
+      const fitScale = Math.min(1.65, available / base.width);
+
+      fitPageWidth = base.width * fitScale;
+      applyFormatCalibration();
+
+      const viewport = page.getViewport({scale:fitScale * zoom});
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+      stage.style.width = viewport.width + 'px';
+      stage.style.height = viewport.height + 'px';
+
+      if(renderTask){
+        try{renderTask.cancel()}catch(e){}
+      }
+
+      renderTask = page.render({
+        canvasContext:canvas.getContext('2d'),
+        viewport
+      });
+
+      try{
+        await renderTask.promise;
+      }catch(e){
+        if(e?.name !== 'RenderingCancelledException') throw e;
+      }
+
+      status.textContent = `Page ${pageNum} of ${pdfDoc.numPages}`;
+      renderSideSheet();
+    }
+
+    function scoreFromPdfX(clientX){
+      const cfg = getConfig();
+      const rect = stage.getBoundingClientRect();
+      const pageRatio = (clientX - rect.left) / rect.width;
+
+      const scoreStart = cfg.studentEnd;
+      const scoreEnd = cfg.tableRight;
+      const ratio = (pageRatio - scoreStart) / (scoreEnd - scoreStart);
+      const clamped = Math.max(0, Math.min(.999666, ratio));
+      return clamped * 3;
+    }
+
+    function updateTrace(event){
+      if(!pdfDoc) return;
+
+      const rect = stage.getBoundingClientRect();
+      cursorRing.style.left = (event.clientX - rect.left) + 'px';
+      cursorRing.style.top = (event.clientY - rect.top) + 'px';
+
+      tracedValue = scoreFromPdfX(event.clientX);
+
+      if(typeof window.setLaLiloScore === 'function'){
+        const live = window.setLaLiloScore(tracedValue);
+        const traceStatus = $('traceStatus');
+        if(traceStatus && Number.isFinite(live)){
+          traceStatus.textContent = 'Live score: ' + live.toFixed(1);
+        }
+      }
+    }
+
+    function addScoreRow(score){
+      rows.push({page:pageNum, name:'', score:Number(score).toFixed(1)});
+      renderSideSheet();
+
+      // Focus the newly-created name cell immediately.
+      requestAnimationFrame(() => {
+        const inputs = sideSheetRows.querySelectorAll('input');
+        if(inputs.length) inputs[inputs.length - 1].focus();
+      });
+    }
+
+    function renderSideSheet(){
+      const pageRows = rows
+        .map((row,index)=>({row,index}))
+        .filter(item=>item.row.page===pageNum);
+
+      if(!pageRows.length){
+        sideSheetRows.innerHTML = '';
+        return;
+      }
+
+      sideSheetRows.innerHTML = pageRows.map((item,visibleIndex)=>`
+        <div class="side-sheet-row">
+          <div><input data-row="${item.index}" value="${escapeAttr(item.row.name)}" aria-label="Student name row ${visibleIndex+1} on page ${pageNum}"></div>
+          <div>${item.row.score}</div>
+        </div>
+      `).join('');
+
+      sideSheetRows.querySelectorAll('input').forEach(input=>{
+        input.addEventListener('input',()=>{
+          const idx = Number(input.dataset.row);
+          rows[idx].name = input.value;
+        });
+      });
+    }
+
+    function escapeAttr(s){
+      return String(s).replace(/[&<>"']/g,c=>({
+        '&':'&amp;',
+        '<':'&lt;',
+        '>':'&gt;',
+        '"':'&quot;',
+        "'":'&#039;'
+      }[c]));
+    }
+
+    pdfFile.addEventListener('change', async e=>{
+      const f = e.target.files[0];
+      if(!f) return;
+
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      pdfDoc = await pdfjsLib.getDocument({data:bytes}).promise;
+
+      pageNum = 1;
+      zoom = 1;
+      empty.classList.add('hidden');
+      workArea.classList.remove('hidden');
+
+      await renderPage();
+    });
+
+    $('prevPage').onclick = ()=>{
+      if(pdfDoc && pageNum > 1){
+        pageNum--;
+        renderPage();
+      }
+    };
+
+    $('nextPage').onclick = ()=>{
+      if(pdfDoc && pageNum < pdfDoc.numPages){
+        pageNum++;
+        renderPage();
+      }
+    };
+
+    $('zoomIn').onclick = ()=>{
+      if(pdfDoc){
+        zoom = Math.min(2.5,zoom+.15);
+        renderPage();
+      }
+    };
+
+    $('zoomOut').onclick = ()=>{
+      if(pdfDoc){
+        zoom = Math.max(.55,zoom-.15);
+        renderPage();
+      }
+    };
+
+    $('fitWidth').onclick = ()=>{
+      if(pdfDoc){
+        zoom = 1;
+        renderPage();
+      }
+    };
+
+    paperFormat.addEventListener('change',()=>{
+      applyFormatCalibration();
+      if(pdfDoc) renderPage();
+    });
+
+    stage.addEventListener('pointerenter',()=>{
+      if(pdfDoc) stage.classList.add('cursor-active');
+    });
+
+    stage.addEventListener('pointerleave',()=>{
+      stage.classList.remove('cursor-active');
+    });
+
+    stage.addEventListener('pointermove',updateTrace);
+
+    stage.addEventListener('click',event=>{
+      if(!pdfDoc) return;
+
+      // Capture exact click position and score.
+      updateTrace(event);
+
+      const clickedScore = (typeof window.getLaLiloScore === 'function')
+        ? window.getLaLiloScore()
+        : Math.round(tracedValue*10)/10;
+
+      addScoreRow(clickedScore);
+
+      // Immediately return to live cursor tracing after the click.
+      stage.classList.add('cursor-active');
+    });
+
+    $('clearSheet').onclick = ()=>{
+      if(!rows.length) return;
+      if(confirm('Are you sure? This will clear all spreadsheet rows.')){
+        rows = [];
+        renderSideSheet();
+      }
+    };
+
+    $('downloadXlsx').onclick = ()=>{
+      if(!rows.length){
+        alert('There is no spreadsheet data to download yet.');
+        return;
+      }
+
+      const exportRows = rows.map(r=>({
+        'Student Name':r.name,
+        'Score':Number(r.score)
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportRows,{
+        header:['Student Name','Score']
+      });
+      ws['!cols'] = [{wch:28},{wch:12}];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb,ws,'LaLilo Scores');
+
+      const base = (pdfFile.files[0]?.name || 'LaLilo Results').replace(/\.pdf$/i,'');
+      XLSX.writeFile(wb,base+' - LaLilo Scores.xlsx');
+    };
+
+    window.addEventListener('resize',()=>{
+      if(pdfDoc) renderPage();
+      else applyFormatCalibration();
+    });
+
+    stage.style.cursor = 'none';
+    applyFormatCalibration();
+    renderSideSheet();
+  })();
+  </script>
+
+
+  <script>
+    (() => {
+      const updateInitialDecoder = () => {
+        const content = document.querySelector('.content');
+        if(!content) return;
+        const available = Math.min(900, Math.max(320, content.clientWidth));
+        document.documentElement.style.setProperty('--decoder-width',(available*.9492)+'px');
+      };
+      updateInitialDecoder();
+      window.addEventListener('resize',updateInitialDecoder);
+    })();
+  </script>
+
 </body>
 </html>
