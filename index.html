@@ -730,6 +730,47 @@
       }
     }
 
+    .page-assignment{
+      padding:14px 20px 16px;
+      border-bottom:1px solid var(--border);
+      background:#f8f9fc;
+    }
+    .assignment-heading{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:baseline;
+      gap:5px 12px;
+      margin-bottom:11px;
+      font-size:13px;
+    }
+    .assignment-heading span{color:var(--muted);font-size:12px}
+    .assignment-controls{display:flex;flex-wrap:wrap;align-items:end;gap:12px 18px}
+    .assignment-controls > label:not(.center-lock){
+      display:flex;flex-direction:column;gap:5px;
+      color:#4b5563;font-size:12px;font-weight:700;
+    }
+    .assignment-controls select{
+      min-width:170px;min-height:38px;padding:0 10px;
+      border:1px solid #bfc8d6;border-radius:8px;background:#fff;
+      color:var(--ink);font:600 13px Arial,Helvetica,sans-serif;
+    }
+    .center-lock{display:flex;align-items:center;gap:7px;min-height:38px;color:#4b5563;font-size:12px;font-weight:600}
+    .center-lock input{width:16px;height:16px;accent-color:var(--navy)}
+    .program-switch{display:flex;align-items:center;gap:0;border:1px solid #bfc8d6;border-radius:9px;overflow:hidden;background:#fff}
+    .program-switch button{min-height:38px;padding:0 16px;border:0;border-radius:0;background:#fff;color:#4b5563;font:700 13px Arial,Helvetica,sans-serif;cursor:pointer}
+    .program-switch button+button{border-left:1px solid #d8dee8}
+    .program-switch button.active{background:var(--navy);color:#fff}
+    .program-switch button:focus-visible{outline:3px solid rgba(104,116,184,.3);outline-offset:-3px}
+    .add-freckle{min-height:38px;padding:0 13px;border:1px solid var(--navy);border-radius:8px;background:var(--navy);color:#fff;font:700 13px Arial,Helvetica,sans-serif;cursor:pointer}
+    .add-freckle:hover{background:var(--navy-dark)}
+    .mode-note{font-size:12px;color:var(--muted);align-self:center}
+    .side-sheet-row input.score-entry{ text-align:center; font-weight:700; }
+    @media(max-width:700px){
+      .page-assignment{padding:12px 14px}
+      .assignment-controls{align-items:stretch;flex-direction:column;gap:10px}
+      .assignment-controls select{width:100%}
+    }
+
   </style>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -835,13 +876,48 @@
           <button id="clearSheet" class="danger" type="button">Clear Spreadsheet</button>
         </div>
         <div class="note" style="margin:0">
-          Hover to trace. Click a plotted circle to add a row: enter the name in Column A; the score is captured automatically in Column B.
+          <span id="traceHelp">Hover to trace and click a LaLilo plotted circle to capture its score.</span>
           <strong id="traceStatus">Live score: 1.0</strong>
         </div>
       </div>
-        <div class="note" style="margin:0">
-          Move the circle over the PDF to trace its horizontal position onto the decoder. Click the PDF to record a student and score.
-          <strong id="traceStatus">Live score: 1.0</strong>
+
+      <div class="page-assignment" aria-label="Page participant details">
+        <div class="assignment-heading">
+          <strong>Participant Details for This Page</strong>
+          <span>These selections are added to the Excel download, not displayed in the score table.</span>
+        </div>
+        <div class="assignment-controls">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#4b5563;margin-bottom:5px">Program</div>
+            <div class="program-switch" role="group" aria-label="Select score program">
+              <button id="laliloMode" type="button" class="active" aria-pressed="true">LaLilo</button>
+              <button id="freckleMode" type="button" aria-pressed="false">Freckle</button>
+            </div>
+          </div>
+          <button id="addFreckleParticipant" class="add-freckle hidden" type="button">+ Add Freckle Participant</button>
+          <span id="programModeNote" class="mode-note">Click a LaLilo result on the PDF to capture its score.</span>
+          <label for="pageGradeLevel">Grade Level
+            <select id="pageGradeLevel">
+              <option value="">Select grade level</option>
+              <option value="0-K">0-K</option>
+              <option value="1st">1st</option>
+              <option value="2nd">2nd</option>
+              <option value="3rd">3rd</option>
+              <option value="4th">4th</option>
+              <option value="5th">5th</option>
+            </select>
+          </label>
+          <label for="pageCenter">Center
+            <select id="pageCenter">
+              <option value="">Select center</option>
+              <option value="Baker">Baker</option>
+              <option value="DHC">DHC</option>
+            </select>
+          </label>
+          <label class="center-lock" for="lockCenter">
+            <input id="lockCenter" type="checkbox">
+            Keep Center when changing pages
+          </label>
         </div>
       </div>
 
@@ -851,7 +927,7 @@
 
       <div id="workArea" class="work-area hidden">
         <aside class="side-sheet">
-          <div class="side-sheet-title">LaLilo Scores</div>
+          <div class="side-sheet-title">Captured Scores</div>
           <div class="side-sheet-head">
             <div>Student Name</div>
             <div>Score</div>
@@ -987,6 +1063,14 @@
     const formatNote = $('formatNote');
     const cursorRing = $('cursorRing');
     const sideSheetRows = $('sideSheetRows');
+    const pageGradeLevel = $('pageGradeLevel');
+    const pageCenter = $('pageCenter');
+    const lockCenter = $('lockCenter');
+    const laliloModeButton = $('laliloMode');
+    const freckleModeButton = $('freckleMode');
+    const addFreckleParticipantButton = $('addFreckleParticipant');
+    const programModeNote = $('programModeNote');
+    const traceHelp = $('traceHelp');
 
     let pdfDoc = null;
     let pageNum = 1;
@@ -995,6 +1079,8 @@
     let renderTask = null;
     let fitPageWidth = 900;
     let tracedValue = 1.0;
+    let centerLocked = false;
+    let programMode = 'LaLilo';
 
     const formatConfig = {
       letter:{
@@ -1096,7 +1182,7 @@
     }
 
     function updateTrace(event){
-      if(!pdfDoc) return;
+      if(!pdfDoc || programMode !== 'LaLilo') return;
 
       const rect = stage.getBoundingClientRect();
       cursorRing.style.left = (event.clientX - rect.left) + 'px';
@@ -1113,15 +1199,41 @@
       }
     }
 
-    function addScoreRow(score){
-      rows.push({page:pageNum, name:'', score:Number(score).toFixed(1)});
-      renderSideSheet();
-
-      // Focus the newly-created name cell immediately.
+    function focusLastParticipantName(){
       requestAnimationFrame(() => {
-        const inputs = sideSheetRows.querySelectorAll('input');
+        const inputs = sideSheetRows.querySelectorAll('input[data-field="name"]');
         if(inputs.length) inputs[inputs.length - 1].focus();
       });
+    }
+
+    function addScoreRow(score){
+      rows.push({
+        page:pageNum,
+        name:'',
+        score:Number(score).toFixed(1),
+        gradeLevel:pageGradeLevel.value,
+        center:pageCenter.value,
+        program:'LaLilo'
+      });
+      renderSideSheet();
+      focusLastParticipantName();
+    }
+
+    function addFreckleRow(){
+      if(!pdfDoc){
+        alert('Upload a PDF before adding Freckle participants.');
+        return;
+      }
+      rows.push({
+        page:pageNum,
+        name:'',
+        score:'',
+        gradeLevel:pageGradeLevel.value,
+        center:pageCenter.value,
+        program:'Freckle'
+      });
+      renderSideSheet();
+      focusLastParticipantName();
     }
 
     function renderSideSheet(){
@@ -1134,20 +1246,71 @@
         return;
       }
 
-      sideSheetRows.innerHTML = pageRows.map((item,visibleIndex)=>`
-        <div class="side-sheet-row">
-          <div><input data-row="${item.index}" value="${escapeAttr(item.row.name)}" aria-label="Student name row ${visibleIndex+1} on page ${pageNum}"></div>
-          <div>${item.row.score}</div>
-        </div>
-      `).join('');
+      sideSheetRows.innerHTML = pageRows.map((item,visibleIndex)=>{
+        const isFreckle = item.row.program === 'Freckle';
+        const scoreCell = isFreckle
+          ? `<input class="score-entry" type="number" step="any" inputmode="decimal" data-row="${item.index}" data-field="score" value="${escapeAttr(item.row.score ?? '')}" aria-label="Freckle score row ${visibleIndex+1} on page ${pageNum}" placeholder="Score">`
+          : `${escapeAttr(item.row.score)}`;
+        return `
+          <div class="side-sheet-row">
+            <div><input data-row="${item.index}" data-field="name" value="${escapeAttr(item.row.name)}" aria-label="Student name row ${visibleIndex+1} on page ${pageNum}"></div>
+            <div>${scoreCell}</div>
+          </div>
+        `;
+      }).join('');
 
       sideSheetRows.querySelectorAll('input').forEach(input=>{
         input.addEventListener('input',()=>{
           const idx = Number(input.dataset.row);
-          rows[idx].name = input.value;
+          const field = input.dataset.field;
+          if(rows[idx] && (field === 'name' || field === 'score')){
+            rows[idx][field] = input.value;
+          }
         });
       });
     }
+
+    function setProgramMode(mode){
+      programMode = mode;
+      const isLaLilo = mode === 'LaLilo';
+      laliloModeButton.classList.toggle('active',isLaLilo);
+      freckleModeButton.classList.toggle('active',!isLaLilo);
+      laliloModeButton.setAttribute('aria-pressed',String(isLaLilo));
+      freckleModeButton.setAttribute('aria-pressed',String(!isLaLilo));
+      addFreckleParticipantButton.classList.toggle('hidden',isLaLilo);
+      programModeNote.textContent = isLaLilo
+        ? 'Click a LaLilo result on the PDF to capture its score.'
+        : 'Add participants manually, then enter each student name and Freckle score.';
+      traceHelp.textContent = isLaLilo
+        ? 'Hover to trace and click a LaLilo plotted circle to capture its score.'
+        : 'Freckle uses manual entry. PDF clicks will not create score rows.';
+      stage.classList.toggle('freckle-mode',!isLaLilo);
+      if(!isLaLilo) stage.classList.remove('cursor-active');
+    }
+
+    laliloModeButton.addEventListener('click',()=>setProgramMode('LaLilo'));
+    freckleModeButton.addEventListener('click',()=>setProgramMode('Freckle'));
+    addFreckleParticipantButton.addEventListener('click',addFreckleRow);
+
+    function applyPageAssignments(){
+      rows.forEach(row=>{
+        if(row.page === pageNum){
+          row.gradeLevel = pageGradeLevel.value;
+          row.center = pageCenter.value;
+        }
+      });
+    }
+
+    function resetPageAssignments(){
+      pageGradeLevel.value = '';
+      if(!centerLocked) pageCenter.value = '';
+    }
+
+    pageGradeLevel.addEventListener('change',applyPageAssignments);
+    pageCenter.addEventListener('change',applyPageAssignments);
+    lockCenter.addEventListener('change',()=>{
+      centerLocked = lockCenter.checked;
+    });
 
     function escapeAttr(s){
       return String(s).replace(/[&<>"']/g,c=>({
@@ -1168,6 +1331,8 @@
 
       pageNum = 1;
       zoom = 1;
+      pageGradeLevel.value = '';
+      pageCenter.value = '';
       empty.classList.add('hidden');
       workArea.classList.remove('hidden');
 
@@ -1177,6 +1342,7 @@
     $('prevPage').onclick = ()=>{
       if(pdfDoc && pageNum > 1){
         pageNum--;
+        resetPageAssignments();
         renderPage();
       }
     };
@@ -1184,6 +1350,7 @@
     $('nextPage').onclick = ()=>{
       if(pdfDoc && pageNum < pdfDoc.numPages){
         pageNum++;
+        resetPageAssignments();
         renderPage();
       }
     };
@@ -1215,7 +1382,7 @@
     });
 
     stage.addEventListener('pointerenter',()=>{
-      if(pdfDoc) stage.classList.add('cursor-active');
+      if(pdfDoc && programMode === 'LaLilo') stage.classList.add('cursor-active');
     });
 
     stage.addEventListener('pointerleave',()=>{
@@ -1225,7 +1392,7 @@
     stage.addEventListener('pointermove',updateTrace);
 
     stage.addEventListener('click',event=>{
-      if(!pdfDoc) return;
+      if(!pdfDoc || programMode !== 'LaLilo') return;
 
       // Capture exact click position and score.
       updateTrace(event);
@@ -1256,16 +1423,19 @@
 
       const exportRows = rows.map(r=>({
         'Student Name':r.name,
-        'Score':Number(r.score)
+        'Score':r.score === '' || r.score == null ? '' : Number(r.score),
+        'Grade Level':r.gradeLevel || '',
+        'Center':r.center || '',
+        'Program':r.program || 'LaLilo'
       }));
 
       const ws = XLSX.utils.json_to_sheet(exportRows,{
-        header:['Student Name','Score']
+        header:['Student Name','Score','Grade Level','Center','Program']
       });
-      ws['!cols'] = [{wch:28},{wch:12}];
+      ws['!cols'] = [{wch:28},{wch:12},{wch:14},{wch:16},{wch:14}];
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb,ws,'LaLilo Scores');
+      XLSX.utils.book_append_sheet(wb,ws,'Program Scores');
 
       const base = (pdfFile.files[0]?.name || 'LaLilo Results').replace(/\.pdf$/i,'');
       XLSX.writeFile(wb,base+' - LaLilo Scores.xlsx');
@@ -1278,6 +1448,7 @@
 
     stage.style.cursor = 'none';
     applyFormatCalibration();
+    setProgramMode('LaLilo');
     renderSideSheet();
   })();
   </script>
